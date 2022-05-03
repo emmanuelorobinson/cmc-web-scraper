@@ -3,31 +3,41 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 def main():
-    # open the excel file
-    excel = pd.ExcelFile('coinmarketcap.xlsx')
 
-    # get the first sheet
-    df = excel.parse(0)
+    for l in range(13,15):
+    #change l to string
+        page = str(l)
+        list = initalPageRequest(page)
+        pageList=[]
 
-    # write to rows beneth the first column
-    
-    list = initalPageRequest('1')
-    pageList=[]
+        for i in list:
+            pageList.append(getCoinURL(i))
 
-    for i in list:
-        # append to subsequent rows under the first column
-        # ensure no duplicate entries
-        pageList.append(getCoinURL(i))
+        recursionHelper(pageList)
 
-        if i not in df['Link']:
-            df.loc[len(df)] = [i]
-
-    for i in pageList:
-        for j in i:
-            getCoinEmail(j)
+        print('Page: ' + page)
         
     # save the file
-    df.to_excel('coinmarketcap.xlsx', sheet_name='Sheet1', index=False)
+
+
+def recursionHelper(website):
+    
+    try:
+        for i in website:
+            print('')
+            if isinstance(i, list):
+                # recursion
+                print('List')
+                recursionHelper(i)
+            else:
+                # get the coin email
+                if i.endswith('.pdf'):
+                    return None
+                getCoinEmail(i)
+    except:
+        pass
+
+    
 
 def initalPageRequest(page):
     url = 'https://coinmarketcap.com/coins/?page='+page
@@ -39,9 +49,15 @@ def initalPageRequest(page):
     # find all href links with class cmc-link under class sc-16r8icm-0
     for link in soup.find_all('a', class_='cmc-link'):
         # if the href link starts with /currencies/
-        if link.get('href').startswith('/currencies/'):
-            # add the href link to the list
-            webLink.append(link.get('href'))
+        try:
+            if link.get('href').startswith('/currencies/'):
+                # add the href link to the list
+                webLink.append(link.get('href'))
+            else:
+                pass
+
+        except AttributeError:
+            pass
 
     return webLink
 
@@ -58,23 +74,39 @@ def getCoinURL(url):
     return pageLink
 
 def getCoinEmail(url):
+    
     resp = requests.get(url)
     soup = BeautifulSoup(resp.text, 'html.parser')
-    email=[]
+    print('received: ' + url)
+    prev = []
+    
+    # open the excel file
+    excel = pd.ExcelFile('coinmarketcap.xlsx')
+
+    # get the first sheet
+    df = excel.parse(0)
 
     # find all mailto links
     for link in soup.find_all('a'):
         # get the href link
         # check if mailto
         try:
-            if link.get('href').startswith('mailto:'):
+            if link.get('href').startswith('mailto:') and df['Email'].str.contains(link.get('href')).any() == False:
                 print(link.get('href'))
-        except:
+
+                df.loc[len(df)] = [link.get('href')]
+
+                print('In Excel')
+            else:
+                pass
+        except AttributeError:
             pass
+
+        # save the file
+        df.to_excel('coinmarketcap.xlsx', sheet_name='Sheet1', index=False)
+
 
 
 
 if __name__ == '__main__':
     main()
-
-
